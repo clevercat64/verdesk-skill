@@ -41,6 +41,7 @@ On a window, `(x,y)` is relative to that window; the anchor keeps it valid when 
 - **Don't over-look.** Re-seeing what the snapshot / `changes` already told you is the single biggest waste. *Snapshot once → act → re-see only on change → pixels only at a wall.*
 - **Focus drifts.** Before any input burst: `focus_window` → confirm the right window is front → act.
 - **Digit-heavy text can misread.** A number/code that must be exact → `browser_get_text` (DOM) or `screenshot` zoomed — never trust it off `look()`'s text layer.
+- **One agent at a time.** `Verdesk is in use by <agent> (<project>)` means another agent holds it and your call did NOTHING — wait (it frees 3 min after that agent's last call; `get_capabilities().lock` says when) and retry. When your task is done, `status({release:true})` frees it for the next agent.
 
 ## Capabilities
 `get_capabilities()` — flags for the current surface (`has_uia`, `has_dom_eval`, `has_input`, …). Call once to know what works here. `send_report({kind, message})` — `kind` ∈ `bug|feedback|other`, to the Verdesk team.
