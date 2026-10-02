@@ -24,7 +24,8 @@ Returns: `frame` (viewport/grid/title/freshness) · `text[]` collages `{id, kind
 - **Why not read pixels for text:** images come light (good for shape: icons, layout). For TEXT use the text layer or `read_text` — at medium res a model hallucinates words.
 
 ## Read exact text — `read_text(target)`
-Deterministic plain text. `target` is exactly one of `{region:{rect}}` · `{elements:{ids}}` (UIA innerText) · `{cells:{selector}}`. Prefer over reading an image. The window title is already in `look().frame.title`. Long numbers/codes can misread (`8.511.708`→`8.511.7e8`, `O`↔`0`) — when a value MUST be exact, `screenshot` it zoomed and read the digits off the enlarged image.
+Deterministic plain text. `target` is exactly one of `{kind:"region",rect:{x,y,w,h}}` (a pixel rectangle in the active target's frame — the coordinates `look()` reports) · `{kind:"cells",selector:{kind:"all"}}` · `{kind:"cells",selector:{kind:"list",ids:[{col,row}]}}` (grid cells of the active buffer). **`elements` is NOT supported — it always returns an error, on any target** (in the browser use `browser_get_text`). Prefer over reading an image. The window title is already in `look().frame.title`. Long numbers/codes can misread (`8.511.708`→`8.511.7e8`, `O`↔`0`) — when a value MUST be exact, `screenshot` it zoomed and read the digits off the enlarged image.
+**The EXACT text of a desktop field** (an edit or combo box) is its **`value`** in `list_uia_elements` — not `look()`'s text, which can misread ordinary words too (measured on Notepad: `look()` misread the words, the UIA `value` of the same field returned the exact text, line breaks `\r\n` included). `value` is the control's current text; it is absent when the control has no value or it is empty.
 
 ## See one thing as an image — `screenshot({target|rect, max_dim?})`
 One rendered crop for what the text layer can't give: an icon (by shape), a chart, a custom-drawn region. `max_dim` = zoom (upscales up to 4×). Monitor-agnostic — Verdesk's own rendering, not an OS grab.
@@ -54,7 +55,7 @@ The Windows clipboard as plain text (get/set on the same call). Omit `text` to R
 - `set_look_zone(zone)` / `clear_look_zone()` / `get_look_zone()` → a default zone for bare `look()` calls (NOT keyboard focus).
 
 ## Wait on a condition, not a clock
-- `wait({ms})` — sleep (cap 60000); only to debug.
+- `wait({ms})` — sleep (cap 60000); for a KNOWN wait (e.g. a person still typing — see `user_changed`); never in place of a condition.
 - `wait_for_uia({id, condition, timeout_ms?})` — `condition.kind` ∈ `exists | enabled | visible | value_contains{substring} | value_equals{value} | toggle_state{state}`.
 - `wait_for_uia_property_change({id, property, timeout_ms?})` — `property` ∈ `value | toggle_state | enabled | offscreen | name`.
 

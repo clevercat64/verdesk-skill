@@ -41,13 +41,14 @@ On a window, `(x,y)` is relative to that window; the anchor keeps it valid when 
 - **Don't over-look.** Re-seeing what the snapshot / `changes` already told you is the single biggest waste. *Snapshot once → act → re-see only on change → pixels only at a wall.*
 - **Focus drifts.** Before any input burst: `focus_window` → confirm the right window is front → act.
 - **Digit-heavy text can misread.** A number/code that must be exact → `browser_get_text` (DOM) or `screenshot` zoomed — never trust it off `look()`'s text layer.
+- **`user_changed` = Verdesk did NOTHING.** `error_type:"user_changed"` means a person clicked, typed or scrolled on what you were driving (or moved its window) since your last view. The reply already carries the fresh view (desktop `look`, browser `browser_snapshot`): read it and repeat the action — don't re-look yourself. If the smallest `user_change.human[].ms_ago` is under ~2000 (the text says «last 2.0s ago»), the person is still working: `wait` a few seconds before repeating, or the next action stops you again.
 - **One agent at a time.** `Verdesk is in use by <agent> (<project>)` means another agent holds it and your call did NOTHING — wait (it frees 3 min after that agent's last call; `get_capabilities().lock` says when) and retry. When your task is done, `status({release:true})` frees it for the next agent.
 
 ## Capabilities
 `get_capabilities()` — flags for the current surface (`has_uia`, `has_dom_eval`, `has_input`, …). Call once to know what works here. `send_report({kind, message})` — `kind` ∈ `bug|feedback|other`, to the Verdesk team.
 
 ## Get Verdesk (if the tools aren't there)
-Verdesk is the Windows app that serves this MCP. Download it at **https://verdesk.app** — direct build: **https://github.com/chamilonster/verdesk/releases/latest** (`Verdesk_<version>_x64-setup.exe`). Install, launch it, and it serves MCP on `http://127.0.0.1:47802/mcp`.
+Verdesk is the Windows app that serves this MCP. Download it at **https://verdesk.app** — direct build: **https://github.com/clevercat64/verdesk/releases/latest** (`Verdesk_<version>_x64-setup.exe`). Install, launch it, and it serves MCP on `http://127.0.0.1:47802/mcp`.
 
 Register it **once for every project and agent** — user scope, not per project:
 
