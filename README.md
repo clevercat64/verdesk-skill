@@ -1,37 +1,26 @@
 # verdesk-skill
 
-Skill para Claude Code (y otros clientes MCP) que enseña a la IA a usar **[Verdesk](https://verdesk.app)** — un servidor MCP para que vos veas la pantalla del user y operes su PC, optimizado para gastar pocos tokens.
+The manual that teaches an AI agent to operate a Windows PC and its browsers through [Verdesk](https://verdesk.app), a local MCP server that sends what changed on screen instead of a full screenshot every turn. Works with Claude Code and other MCP clients.
 
-## Cómo se usa
+## Use it
 
-El user copia un prompt desde Settings → 04 ACCESO en la UI de Verdesk y lo pega en su cliente. El prompt incluye el link a este `SKILL.md` + los datos de conexión.
+1. Install Verdesk from [verdesk.app](https://verdesk.app) (the setup `.exe` is on [GitHub Releases](https://github.com/clevercat64/verdesk/releases/latest)) and run it.
+2. In Verdesk, open **Settings → Connection** and press **Copy prompt**, then paste it into your agent. Or register the server yourself:
 
-La IA lee el manual, se lo absorbe como skill local, y se conecta sola. El user solo aprueba **una vez** un popup que aparece en su pantalla.
+   ```bash
+   claude mcp add --transport http --scope user verdesk http://127.0.0.1:47802/mcp
+   ```
 
-Detalle de los pasos: [`SKILL.md`](./SKILL.md#conexión-inicial-primera-vez).
+3. Reopen your agent's terminal so it loads the MCP server.
 
-### Modo Local (mismo PC)
+You do not need to clone this repository. Verdesk serves this manual from the running program (the `verdesk_skill` tool) and refreshes its own copy in `%USERPROFILE%\.claude\skills\verdesk\` every time it starts, so the manual always matches the installed version.
 
-Cuando Verdesk corre en la misma máquina que el cliente, no hay bootstrap. El user solo registra el server:
+## What is here
 
-```bash
-claude mcp add --transport http verdesk http://127.0.0.1:47802/mcp
-```
+- [`SKILL.md`](./SKILL.md) — the router. If the tools are missing, start with [Get Verdesk](./SKILL.md#get-verdesk-if-the-tools-arent-there); for how the copy is kept current, see [Self-integration & setup](./SKILL.md#self-integration--setup).
+- [`references/`](./references) — one file per area: `browser.md`, `desktop.md`, `trains.md` and `verbs.md`. The router says which one to read.
+- `plugin.json` — the manifest for Claude Code.
 
-## Qué le da Verdesk a la IA
+## License
 
-- **Ver pantalla**: capturas eficientes que gastan menos tokens que un screenshot tool genérico.
-- **Leer texto plano** de zonas de pantalla — la IA recibe el texto listo, sin imágenes que procesar.
-- **Tomar acciones**: click semántico, click por texto visible, click por coords, escritura, scroll, comandos de shell.
-- **Memoria visual** entre turnos.
-
-## Modos de acceso
-
-| Modo | Cuándo |
-|------|--------|
-| **Local** | Cliente IA y Verdesk en el mismo PC. |
-| **Remote** | Cliente IA en otra máquina. Conexión cifrada con autorización por clave del lado del user. |
-
-## Licencia
-
-MIT.
+This skill is MIT-licensed ([LICENSE](./LICENSE)). Verdesk itself is covered by its own [EULA](https://github.com/clevercat64/verdesk/blob/main/LICENSE).
