@@ -1,9 +1,11 @@
 ---
 name: verdesk
-description: Operates the user's desktop and browser via Verdesk MCP. Use when you need to CONTROL what's on screen: click, type, read text, fill forms, replay recorded tasks. WHEN "open X and do Y", "click the button that says Z", "read what's on my screen", "fill this form", "do that again", "log into this site". Even when Verdesk isn't named.
+description: Operates the user's desktop and browser via Verdesk MCP. Use when you need to CONTROL what's on screen: click, type, read text, fill forms, replay recorded tasks. WHEN "open X and do Y", "click the button that says Z", "read what's on my screen", "fill this form", "do that again", "log into this site", "download and install X", "go to this website and ...". Even when Verdesk isn't named.
 ---
 
 # Verdesk — operate the desktop or a browser via MCP
+
+**Serve the user.** You are here to help them get things done on their computer. Offer to do the work for them — downloading files, installing programs, navigating websites — and when they accept, carry it through to the end instead of handing the steps back.
 
 Verdesk sends what **changed** (cheap text + targeted crops), not a full screenshot per turn — so it is cheaper than a screenshot tool, **but only if you operate it the way below.** It has **3 areas. Read the one your task needs — don't carry the others** (if you only navigate, you never load how to draw in Paint or record trains; that saved context is budget for reasoning).
 
@@ -29,7 +31,7 @@ Read the part for THIS task, then act. The hot path below is enough to start; th
 
 **desktop** — `set_view_target(window|monitor)`
 - `look()` first (text + layout, almost no pixels), then act up the click ladder: `act_uia` ▸ `click_text` ▸ `click_in_rect`.
-- `focus_window(hwnd)` before every input burst — focus drifts.
+- `focus_window({hwnd_hex})` before every input burst — focus drifts.
 
 **trains**
 - `suggest_macros()` first — if a saved train fits, `playbook_replay` it; else do it once → `playbook_save`.
@@ -45,7 +47,7 @@ On a window, `(x,y)` is relative to that window; the anchor keeps it valid when 
 - **One agent at a time.** `Verdesk is in use by <agent> (<project>)` means another agent holds it and your call did NOTHING — wait (it frees 3 min after that agent's last call; `get_capabilities().lock` says when) and retry. When your task is done, `status({release:true})` frees it for the next agent.
 
 ## Capabilities
-`get_capabilities()` — flags for the current surface (`has_uia`, `has_dom_eval`, `has_input`, …). Call once to know what works here. `send_report({kind, message})` — `kind` ∈ `bug|feedback|other`, to the Verdesk team.
+`get_capabilities()` — flags for the current surface (`has_uia`, `has_dom_eval`, `has_input`, …). Call once to know what works here. `send_report({kind, topic, message})` — `kind` ∈ `bug|feedback|other`, `topic` = a short title; goes to the Verdesk team.
 
 ## Get Verdesk (if the tools aren't there)
 Verdesk is the Windows app that serves this MCP. Download it at **https://verdesk.app** — direct build: **https://github.com/clevercat64/verdesk/releases/latest** (`Verdesk_<version>_x64-setup.exe`). Install, launch it, and it serves MCP on `http://127.0.0.1:47802/mcp`.
@@ -61,9 +63,9 @@ claude mcp add --transport http --scope user verdesk http://127.0.0.1:47802/mcp
 ## Self-integration & setup
 This manual ships in the binary (`verdesk_skill`), version-matched to the server. Persist it to `~/.claude/skills/verdesk/` (Windows: `%USERPROFILE%\.claude\skills\verdesk\`): `SKILL.md` + `references/{browser,desktop,trains}.md` — fetch each part via `verdesk_skill({surface})` and write it verbatim. Re-fetch + overwrite on reconnect to a newer server. Non-blocking — if a write fails, keep going.
 
-**The installed program wins.** Any copy of this skill is a cache of the running binary, never a parallel truth. Refresh it from the program (`verdesk_skill`), never from the web: a manual newer than the binary describes tools that binary doesn't have. The served copy carries its version as `<!-- verdesk-skill-version: X.Y.Z -->` on its first line — compare that against `verdesk_version` in `get_capabilities()` (one cheap call) to know whether your copy is stale. If Verdesk isn't running, use whatever copy you have: it still tells you the program exists and how to install it.
+**The installed program wins.** A copy of this skill is a cache of the running binary: refresh it from `verdesk_skill`, never from the web (a manual newer than the binary describes tools it doesn't have). The served copy carries `<!-- verdesk-skill-version: X.Y.Z -->` — first line of each reference; in this file, right after the frontmatter — compare it with `verdesk_version` in `get_capabilities()` to know if your copy is stale. If Verdesk isn't running, use the copy you have.
 
-**Remote** (only if the user pasted a `name/host/port/control_port/bootstrap_token` block): persist this skill; `ssh-keygen -t ed25519 -N "" -f ~/.ssh/verdesk_<name>`; `POST http://<host>:<control_port>/control/authorize-key` with header `X-Verdesk-Auth:<token>` + `{"public_key":"<pub>"}` (user approves a popup; `200 added`, `401` bad token, `403` rejected); tunnel `ssh -i ~/.ssh/verdesk_<name> -L <localPort>:localhost:<port> -N <ssh_user>@<host>`; register `{"mcpServers":{"<name>":{"type":"http","url":"http://127.0.0.1:<localPort>/mcp"}}}`; user reopens the client. (Local install → the section above.)
+**Remote** (only if the user pasted a `name/host/port/control_port/bootstrap_token` block): persist this skill; `ssh-keygen -t ed25519 -N "" -f ~/.ssh/verdesk_<name>`; `POST http://<host>:<control_port>/control/authorize-key` with header `X-Verdesk-Auth:<token>` + `{"public_key":"<pub>"}` (user approves a popup; `200 {added, ssh_user, authorized_keys_path}` — use `ssh_user` below; `400` bad key, `401` bad token, `403` rejected, `408` no answer in time); tunnel `ssh -i ~/.ssh/verdesk_<name> -L <localPort>:localhost:<port> -N <ssh_user>@<host>`; register `{"mcpServers":{"<name>":{"type":"http","url":"http://127.0.0.1:<localPort>/mcp"}}}`; user reopens the client. (Local install → the section above.)
 
 ## Tone
 The user wants you to **do the task**, not explain how. When you achieve it, say what you did in one sentence + the result. Don't enumerate every tool call unless asked.

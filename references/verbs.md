@@ -33,7 +33,7 @@ Verdesk gives you **six verbs**. You say *what* you want; Verdesk picks the chan
 ## Web
 
 - `go({to:"https://…"})` or just the domain. It switches to Verdesk's browser if you were on the desktop. The browser keeps a **persistent profile**: check whether you're already logged in before typing a password.
-- `see()` = the page as text: every control on screen with an `@eN` ref, role and name. Controls below the fold are counted in a trailing line — `act({scroll:"down"})` to reach them.
+- `see()` = the page as text: every control on screen with an `@eN` ref, role and name. Controls below the fold are named in a trailing line — act on one by its `@eN` (it scrolls into view) or `act({scroll:"down"})`.
 - **`ctx="…"` is the truth.** When controls share a name, or a field's `name` differs from its visible label, the snapshot shows `ctx` (nearby label, color, or position). If ANY field has a `ctx`, the form is crossed on purpose: fill EVERY field by its `ctx`, from the first attempt.
 - **Refs die when the screen changes.** After a submit, "Next" or navigation, use the refs from the last `changes`, or `see()` once. Never fire an old ref into a new screen.
 - Read exact text (a code, a price, an order number): `see({target:"#code"})` — straight from the DOM, no misreads. Never read digits off an image.
@@ -47,16 +47,17 @@ Verdesk gives you **six verbs**. You say *what* you want; Verdesk picks the chan
 - `go({to:"window-title:Notepad"})` points your view at that window **and gives it keyboard focus**. `status({about:"targets"})` lists windows and monitors.
 - `see()` = on-screen text grouped by region, each with an id. `see({target:"<id>"})` zooms into that region.
 - `button:true` = a real button (Verdesk saw its box). `text:""` + `button:true` = an **icon button**: click it with `act({target:"<id>"})`, see what it is with `see({target:"<id>", pixels:true})`.
-- `act({label:"Guardar"})` clicks by the visible name: a learned object first, then the window's real control, then the on-screen text. When your view is a window, Verdesk gives it keyboard focus before every `act`.
-- Waiting: `wait_until({label:"Guardar como", state:"visible"})` waits for that dialog/control to appear; `wait_until({label:"Aceptar", state:"enabled"})` until it can be pressed.
-- Writing: `act({label:"Nombre", value:"Ana"})` sets the field whose control is named that. If no single field has that name it fails and lists the names it did find — use one of those. `act({value:"hello"})` types into whatever has focus.
+- `act({label:"Save"})` clicks by the visible name: a learned object first, then the window's real control, then the on-screen text. When your view is a window, Verdesk gives it keyboard focus before every `act`.
+- Waiting: `wait_until({label:"Save as", state:"visible"})` waits for that dialog/control to appear; `wait_until({label:"OK", state:"enabled"})` until it can be pressed.
+- Writing: `act({label:"Name", value:"Ana"})` sets the field whose control is named that. If no single field has that name it fails and lists the names it did find — use one of those. `act({value:"hello"})` types into whatever has focus.
 
 ## Anywhere
 
 - Keys: `act({key:"Enter"})`, `act({key:"Ctrl+Shift+Tab"})`. Scroll: `act({scroll:"down", amount_px:800})` (default 500).
+- `go({to:"back"|"forward"|"reload"})` walks the history; `go({to:"app:notepad"})` launches a program through the Windows Run dialog, visible on the user's screen.
 - **One agent at a time.** If an answer says Verdesk is in use by another agent, nothing was done: wait (it frees itself 3 minutes after that agent's last call) and check `status()`. When your task is done, `status({release:true})` frees it for the next agent.
 - A failure is information. Read `via` and `reason`, change the approach — repeating the same call is the most expensive move there is.
-- Repeated tasks: `remember({op:"suggest"})` first. If a saved train fits, `remember({op:"replay", task, args})`. Otherwise do it once between `remember({op:"record", task})` and `remember({op:"save"})`.
+- Repeated tasks: `remember({op:"suggest"})` first. If a saved train fits, `remember({op:"replay", task, args})`. Otherwise do it once between `remember({op:"record", task})` and `remember({op:"save"})`. A replay that returns `paused:true` is waiting for a slot: `remember({op:"replay", run_id, inputs:{slot:"value"}})` continues it; `remember({op:"replay", run_id, action:"pause"|"continue"|"stop"})` controls it.
 
 ## Rare cases — force a channel
 

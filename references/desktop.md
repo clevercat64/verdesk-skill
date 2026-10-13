@@ -3,10 +3,10 @@
 `look()` first — on-screen text as collages + layout, almost no pixels. Then act on a UIA control, a piece of visible text, or a box the engine hands you. **`focus_window` before every input burst** — focus drifts.
 
 ## Gotchas (read first)
-- **Typed a URL / pressed keys, nothing changed.** → The wrong window has OS focus (`set_view_target` ≠ focus; focus drifted). `focus_window(hwnd)` → `look()` to confirm the right window is front → retry. Never input blind after a gap.
+- **Typed a URL / pressed keys, nothing changed.** → The wrong window has OS focus (`set_view_target` ≠ focus; focus drifted). `focus_window({hwnd_hex})` → `look()` to confirm the right window is front → retry. Never input blind after a gap.
 - **Click hit the wrong thing.** → You aimed by eye. Use `dry_run:true`; the crosshair shows the exact pixel before you commit.
 - **`look()` shows the wrong app / a black frame.** → Wrong surface. `list_surfaces()` + `set_view_target(...)`.
-- **`click_text` matched nothing.** → On-screen text isn't literally what you typed (case/whitespace). Use a shorter unique substring, or `look(mode:"detail")` then `click_in_rect` with `dry_run`.
+- **`click_text` matched nothing.** → On-screen text isn't literally what you typed (spelling/whitespace — the match ignores case). Use a shorter unique substring, or `look(mode:"detail")` then `click_in_rect` with `dry_run`.
 
 ## Coordinate model (read once)
 On a window surface every `(x,y)` is **relative to that window** — `(0,0)` = the top-left of its **frame — the exact frame `look()` reports, title bar included** (so a coordinate read from `look()`/`read_text`/UIA lands on the same pixel when clicked; the invisible resize border is not part of it). These are your **fixed cords**: stable. Verdesk converts them to absolute screen (real cords) to send input and keeps them valid even if the window moves — via the automatic anchor. Two different things, do not confuse them (the #1 cause of "nothing happened"): **`set_view_target`** = what you SEE + the coordinate frame; **`focus_window`** = OS keyboard focus = where input LANDS.
@@ -20,7 +20,7 @@ Returns: `frame` (viewport/grid/title/freshness) · `text[]` collages `{id, kind
 - `want` = subset of `["text","layout","visual"]` (default `["text","layout"]`, no pixels; add `"visual"` only to see shape).
 - `mode` = `glance` (cheap default) | `detail` (finer text).
 - **`button:true`** on a text entry = Verdesk saw a real button (a framed or filled box) around it, not just short text. An entry with `text:""` and `button:true` is an **icon button**: no text, but clickable — `click_collage(id)`; to see what the icon is, `look({zone:{kind:"around_collage",id}, want:["visual"]})`.
-- `zone` = `{kind:"all"}` · `{kind:"rect",rect:{x,y,w,h}}` · `{kind:"cells",ids:[…]}` · `{kind:"around_collage",id}` · `{kind:"around_layout_zone",id}` · `{kind:"selector",css}` (resolves ANY element's bbox — even a non-interactive `<div>`/drop-zone).
+- `zone` = `{kind:"all"}` · `{kind:"rect",rect:{x,y,w,h}}` · `{kind:"cells",ids:[{col,row},…]}` · `{kind:"around_collage",id,padding_px?}` (default 50) · `{kind:"around_layout_zone",id}` · `{kind:"selector",css}` (**browser only**: a CSS selector or `@eN`; the element's box, even a non-interactive `<div>`/drop-zone).
 - **Why not read pixels for text:** images come light (good for shape: icons, layout). For TEXT use the text layer or `read_text` — at medium res a model hallucinates words.
 
 ## Read exact text — `read_text(target)`
@@ -36,21 +36,21 @@ One rendered crop for what the text layer can't give: an icon (by shape), a char
 
 ## Act — the click ladder (top→down, most robust first)
 1. `act_uia({id, action})` — semantic UIA when `get_capabilities().has_uia`. No pixels → survives moves.
-2. `click_text(query, occurrence?)` — a visible substring from `look().text`. `occurrence` ∈ `first|last|nth|all`. ex: `click_text("Pinceles")`. Clicks the center of the matching WORD(S) (several words = their union), not of the whole text block; `clicked` returns the rect pressed.
+2. `click_text(query, occurrence?)` — a visible substring from `look().text`. `occurrence` = `"first"` (default) | `"last"` | `{"kind":"nth","index":N}` (0-based) | `"all"`. ex: `click_text("Brushes")`. Clicks the center of the matching WORD(S) (several words = their union), not of the whole text block; `clicked` returns the rect pressed.
 3. `click_collage(id)` — a collage from the last `look()`.
 4. `click_in_rect({x,y,w,h, x_pct?, y_pct?, button?, dry_run?})` — a precise box. Center by default. ex: `click_in_rect({x:387,y:100,w:39,h:8})`.
 5. `click_at({x,y, button?})` — pixel-perfect, last resort.
 
 `button` ∈ `left`(default)|`right`(context menu)|`middle`. **`dry_run:true`** on `click_in_rect` fires NO click — returns `{x,y,resolved_rect}` + an 80×80 crop with a magenta crosshair on the exact pixel. Free; use whenever unsure, then repeat with `dry_run:false`.
 
-**Other input:** `type_text(text)` · `press_key({key, ctrl?, alt?, shift?, win?})` · `scroll({direction, amount_px})` · `drag_path({points:[{x,y}…], button?, hold_ms?})` (press→move→release; drawing/sliders/drag&drop — points are viewport coords).
+**Other input:** `type_text(text)` — each line break in `text` (`\n`, `\r\n`, `\r`) is typed as **Shift+Enter** (a new line that does not send a chat message or submit a form); for a real Enter use `press_key`. It REFUSES a text with line breaks, typing nothing — `{ok:false, error_type:"newline_unsafe_target", kind, target_process, hint}` — when the program that has the keyboard is a spreadsheet, a terminal, an IDE (editor + integrated terminal), the user's own browser, or one Verdesk cannot identify (`kind` = `spreadsheet|terminal|ide|browser|unknown`); the `hint` says what to do for that program (split the text, `type_text` each line, `press_key` between them). In Verdesk's own browser use `browser_type`, which handles line breaks itself. Otherwise it reads the focused field back when UIA allows and answers `{ok, outcome, hint?}`: `confirmed` (the field has what you typed), `unconfirmed` (the app changed or dropped part of it — read the field), `unreadable` (a password, or an app that hides its text: nothing was verified); never the text itself. · `press_key({key, ctrl?, alt?, shift?, win?})` · `scroll({direction, amount_px})` · `drag_path({points:[{x,y}…], button?, hold_ms?})` (press→move→release; drawing/sliders/drag&drop — points are viewport coords).
 
 ## Clipboard — `clipboard(text?)`
 The Windows clipboard as plain text (get/set on the same call). Omit `text` to READ the current content → `{text: string|null}` (null if the clipboard has no text) — the way to pull text out of an app with no UIA/DOM: select it in the app, `press_key({key:"c", ctrl:true})`, then read here. Pass `text` to WRITE it, overwriting whatever was there → `{ok:true}` — pair with `press_key({key:"v", ctrl:true})` to move text into a field in one paste instead of `type_text`ing it character by character (slow, and can corrupt long strings). Works with real Ctrl+C/Ctrl+V from any other app, not just Verdesk's own writes.
 
 ## Window & coordinates
 - `focus_window(hwnd_hex)` → OS keyboard focus. **Re-call before every input burst** (focus drifts). On a multi-tab browser window, this brings the WINDOW forward but can NOT select a specific tab — Win32 has no per-tab HWND, so it lands on whichever tab the browser last had active. Not fixable from here; if you need a specific tab, use the browser tier's own `browser_select_tab` instead of `set_view_target`+`focus_window` on a desktop-tier browser window.
-- `get_window_geometry()` → `{x,y,w,h, window_rect, client, monitor, minimized, maximized, corners, any_corner_offscreen}`. `x,y,w,h` = the visible frame `look()` and clicks use (title bar included); `window_rect` = outer rect with the invisible resize border; `client` = below the title bar.
+- `get_window_geometry()` → `{x,y,w,h, window_rect, client, monitor, minimized, maximized, hidden, corners, any_corner_offscreen}`. `x,y,w,h` = the visible frame `look()` and clicks use (title bar included); `window_rect` = outer rect with the invisible resize border; `client` = below the title bar.
 - `set_window_size({width?,height?, state?})` → resize the CLIENT area (below the title bar; the click frame is the client plus the title bar) and/or change the show-state; no move / no focus steal. `width`+`height` restore the size a train was recorded at. `state` ∈ `maximized|minimized|normal` — applied BEFORE any resize, and deliberately ignores width/height when given (maximizing a specific size makes no sense). Pass width+height, state, or both — at least one required. `state:"normal"` runs `SW_RESTORE`, which returns to whatever state preceded the last minimize (if you minimized a maximized window, `"normal"` gives you back maximized, not windowed — that's Win32, not a bug).
 - `set_look_zone(zone)` / `clear_look_zone()` / `get_look_zone()` → a default zone for bare `look()` calls (NOT keyboard focus).
 
@@ -59,8 +59,7 @@ The Windows clipboard as plain text (get/set on the same call). Omit `text` to R
 - `wait_for_uia({id, condition, timeout_ms?})` — `condition.kind` ∈ `exists | enabled | visible | value_contains{substring} | value_equals{value} | toggle_state{state}`.
 - `wait_for_uia_property_change({id, property, timeout_ms?})` — `property` ∈ `value | toggle_state | enabled | offscreen | name`.
 
-## Advanced — buffer reset, cross-session memory, profiles (rarely needed)
-The visual buffer auto-resets on a big screen change (title/URL/readyState, >40% DOM, >60% cells); you rarely manage it — check `look().frame.freshness`. If you must:
-- Buffer control: `force_reset` (hard-reset now — archives the buffer to history first, so nothing is lost) · `pin_buffer`/`unpin_buffer` (veto/re-enable the NEXT automatic reset — use before a known big change you don't want to lose context over, e.g. opening a modal).
+## Advanced — cross-session memory, profiles (rarely needed)
+The visual buffer resets by itself on a big screen change; you never manage it — `look().frame.freshness` says how fresh the frame is.
 - Cross-session visual memory: `query_history({zone, threshold?})` — "have I seen something like THIS before?" `zone` is the same selector as `look` (e.g. `{"kind":"around_collage","id":"..."}` right after a `look()`); the server fingerprints it, you handle no hashes. Returns `snapshots` (best first) with `url`, `archived_at`, `matched_cells`, `same_position_cells` (strong signal) and `avg_distance`; empty = never seen. Plain-background cells carry no information and are excluded: read `matched_cells` against `zone_cells - excluded_cells`, not `zone_cells`. Memory is what `look()` showed, archived on `set_view_target` or a reset. `threshold` = max Hamming distance (default 8, lower = stricter). Read-only, survives resets/navigation.
 - Profiles (saved modulation recipes — resolution/quality/color_mode/threshold/levels/brightness/contrast/gamma): `list_profiles` · `load_profile` · `save_profile` · `update_profile` · `rate_profile` · `delete_profile`. No MCP tool currently applies a loaded profile's full param set for you — it's mainly a persisted recipe record, also used by the desktop Lab UI (a human-facing panel, not something you drive).
