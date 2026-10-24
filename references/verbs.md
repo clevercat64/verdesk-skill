@@ -7,7 +7,7 @@ Verdesk gives you **six verbs**. You say *what* you want; Verdesk picks the chan
 | `see` | what is here | `see()` · `see({target:"#total"})` · `see({pixels:true})` |
 | `act` | do this | `act({target:"@e7"})` · `act({label:"Save"})` · `act({target:"@e4", value:"Ana"})` · `act({key:"Ctrl+S"})` |
 | `go` | take me to | `go({to:"example.com"})` · `go({to:"back"})` · `go({to:"window-title:Excel"})` |
-| `wait_until` | until this is true | `wait_until({text:"Saved"})` · `wait_until({target:".spinner", state:"hidden"})` |
+| `wait_until` | until this is true | web: `wait_until({text:"Saved"})` · `wait_until({target:".spinner", state:"hidden"})` — desktop: `wait_until({label:"Save as", state:"visible"})` (a control, not text) |
 | `remember` | record / replay a task | `remember({op:"suggest"})` · `remember({op:"replay", task:"send invoice", args:{to:"Ana"}})` |
 | `status` | what can I do here | `status()` · `status({about:"targets"})` |
 

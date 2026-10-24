@@ -4,7 +4,7 @@
 
 ## Gotchas (read first)
 - **Typed a URL / pressed keys, nothing changed.** → The wrong window has OS focus (`set_view_target` ≠ focus; focus drifted). `focus_window({hwnd_hex})` → `look()` to confirm the right window is front → retry. Never input blind after a gap.
-- **Click hit the wrong thing.** → You aimed by eye. Use `dry_run:true`; the crosshair shows the exact pixel before you commit.
+- **Click hit the wrong thing.** → You aimed by eye. Use `click_in_rect` or `click_in_cell` with `dry_run:true` (no other click tool has it); the crosshair shows the exact pixel before you commit.
 - **`look()` shows the wrong app / a black frame.** → Wrong surface. `list_surfaces()` + `set_view_target(...)`.
 - **`click_text` matched nothing.** → On-screen text isn't literally what you typed (spelling/whitespace — the match ignores case). Use a shorter unique substring, or `look(mode:"detail")` then `click_in_rect` with `dry_run`.
 
@@ -41,6 +41,8 @@ One rendered crop for what the text layer can't give: an icon (by shape), a char
 4. `click_in_rect({x,y,w,h, x_pct?, y_pct?, button?, dry_run?})` — a precise box. Center by default. ex: `click_in_rect({x:387,y:100,w:39,h:8})`.
 5. `click_at({x,y, button?})` — pixel-perfect, last resort.
 
+`click_in_cell({cell_id:{col,row}, dry_run?})` is `click_in_rect` addressed by a cell of the 12×8 grid, with a small random offset by default (`jitter:false` for the exact point): use it when you know the cell, `click_in_rect` when you have a box.
+
 `button` ∈ `left`(default)|`right`(context menu)|`middle`. **`dry_run:true`** on `click_in_rect` fires NO click — returns `{x,y,resolved_rect}` + an 80×80 crop with a magenta crosshair on the exact pixel. Free; use whenever unsure, then repeat with `dry_run:false`.
 
 **Other input:** `type_text(text)` — each line break in `text` (`\n`, `\r\n`, `\r`) is typed as **Shift+Enter** (a new line that does not send a chat message or submit a form); for a real Enter use `press_key`. It REFUSES a text with line breaks, typing nothing — `{ok:false, error_type:"newline_unsafe_target", kind, target_process, hint}` — when the program that has the keyboard is a spreadsheet, a terminal, an IDE (editor + integrated terminal), the user's own browser, or one Verdesk cannot identify (`kind` = `spreadsheet|terminal|ide|browser|unknown`); the `hint` says what to do for that program (split the text, `type_text` each line, `press_key` between them). In Verdesk's own browser use `browser_type`, which handles line breaks itself. Otherwise it reads the focused field back when UIA allows and answers `{ok, outcome, hint?}`: `confirmed` (the field has what you typed), `unconfirmed` (the app changed or dropped part of it — read the field), `unreadable` (a password, or an app that hides its text: nothing was verified); never the text itself. · `press_key({key, ctrl?, alt?, shift?, win?})` · `scroll({direction, amount_px})` · `drag_path({points:[{x,y}…], button?, hold_ms?})` (press→move→release; drawing/sliders/drag&drop — points are viewport coords).
@@ -56,6 +58,7 @@ The Windows clipboard as plain text (get/set on the same call). Omit `text` to R
 
 ## Wait on a condition, not a clock
 - `wait({ms})` — sleep (cap 60000); for a KNOWN wait (e.g. a person still typing — see `user_changed`); never in place of a condition.
+- `wait_until({label, state})` — on a desktop target it waits for a CONTROL: its visible name (or an `auto_NNN`) plus `state` = `visible | enabled | changed`. There is no wait for on-screen text without a control: call `look()` again.
 - `wait_for_uia({id, condition, timeout_ms?})` — `condition.kind` ∈ `exists | enabled | visible | value_contains{substring} | value_equals{value} | toggle_state{state}`.
 - `wait_for_uia_property_change({id, property, timeout_ms?})` — `property` ∈ `value | toggle_state | enabled | offscreen | name`.
 

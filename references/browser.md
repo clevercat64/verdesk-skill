@@ -48,17 +48,17 @@ A field inside the iframe and a same-named decoy outside it never collide, even 
 
 ### Log in to a site
 
+The password is the person's. Let them type it on the page; if they gave it to you for this task, fill it once with `browser_fill` and do not repeat it anywhere. Verdesk's Chrome keeps a **persistent profile** (a session survives across launches), so check first whether you are already in. If not, fill the user name, let the person type the password on the page, then click sign-in:
+
 ```
 browser_snapshot()
-run_steps({steps:[
-  {tool:"browser_fill", args:{target:"@e4", value:"user@example.com"}},
-  {tool:"browser_fill", args:{target:"@e5", value:"«password»"}},
-  {tool:"browser_click",args:{target:"@e6"}}
-]})
+browser_fill({target:"@e4", value:"user@example.com"})   // replaces anything the browser autofilled
+// the person types the password on the page (or browser_fill once if they gave it to you)
+browser_click({target:"@e6"})
 browser_wait_for({condition:{kind:"text", text:"Dashboard"}})   // name what proves you're in
 ```
 
-Verdesk's Chrome keeps a **persistent profile**: log in once and the session survives across launches — check whether you're already in before typing anything.
+To repeat the login, record it as a macro whose password slot the person or the vault fills (trains, section 7).
 
 **Moving a password you must NOT see** (a value sitting in another field, or behind a "Copy" button): `browser_transfer({from, to})` moves it DOM→DOM and returns only `{ok, value_len}` — the secret never passes through you.
 
@@ -209,15 +209,10 @@ run_steps({...})  // → {ok:false, failed_step:3, tool:"browser_fill", reason:"
 
 The result names which step broke and why, and stops there. `stale_ref` means your refs are from a previous screen — re-snapshot and act on fresh ones, UNLESS an earlier step in the same `results` array already flagged `dom_changed:true` (a `browser_fill`/`browser_click` that re-rendered the page): its own `changes.new` already has the fresh refs — read that before paying for a new snapshot. A rejected `fill` means wrong ref, an option that doesn't exist, or a length/format constraint. The failure is information: read it, then change the approach — repeating the same call is the most expensive move available.
 
-### After a page transition — refs are dead
-
-Any checkpoint, "Next", submit, or navigation kills every `@eN` you were holding. Use the fresh refs from the last action's `changes`, or take one new snapshot. **Never fire an old ref into a screen that moved.**
-
 ## Gotchas (read first)
 - **Re-looking after a change is the #1 cost.** A `browser_click` already returns `changes` (what appeared, with fresh `@ref`s). Act on it — do NOT `browser_snapshot`/`look()` to "double-check".
 - **The DOM `name` can LIE; the visible label (`ctx`) is the truth.** On a form field, route by `ctx="…"`, never by `name`. **If ANY field carries a `ctx`, the form is crossed on purpose — fill EVERY field by its `ctx` from the FIRST attempt. Never fill by `name` and correct after: the correction is a second pass you may be timed out of.** Don't `look()` to "see" the label — the `ctx` already is it.
 - **A person can use this Chrome too.** If a `browser_click`/`browser_type`/`browser_fill`/`browser_transfer`/`browser_drag`/`browser_upload` answers `error_type:"user_changed"`, someone clicked, typed or scrolled in the browser window after your last `browser_snapshot`: it did NOTHING, and a fresh `browser_snapshot` is attached. Read it (a field they filled shows the new value; an `@eN` still on the page keeps its number) and repeat. Reads (`browser_get_*`, `browser_find_text`) do not count as a new view.
-- **Pixels are a last resort, only at a wall:** `<canvas>`/captcha, a color-only difference, an unlabeled icon, a custom-drawn UI. Everywhere else the snapshot has the answer — reaching for `look()` because it feels safer is what makes a browser run several times slower than it should be.
 - **An overlay over the page does NOT block you.** A DOM action (`browser_click`/`browser_type`/`browser_fill`) operates the node itself and goes THROUGH the visual overlay — and acting on a background field often dismisses the popup (the AliExpress pattern: type in the search, hit Enter, the popup is gone). Act on the background element directly by its `@ref`/selector; do NOT assume it's inert. ONLY if the action reports no visible effect, close the overlay (its close control is named in the error) and retry. Ads/cookie-banners re-appear mid-task — re-check.
 
 ## Enter the browser
@@ -225,7 +220,7 @@ Any checkpoint, "Next", submit, or navigation kills every `@eN` you were holding
 - `navigate({url})` loads a URL · `back()` · `forward()` · `reload()`.
 
 ## See — `browser_snapshot()`
-The page's accessibility tree: interactive controls as `@eN` + role + name. Cheap text, no pixels — **this is your sight, not `look()`**.
+The page's accessibility tree: interactive controls as `@eN` + role + name — not selectors. Cheap text, no pixels — **this is your sight, not `look()`**.
 - **It's the NOW visible — the windshield, not the whole page.** The snapshot lists only the controls inside the viewport; a trailing line `(+N controls off-screen below the visible viewport — act by @ref (auto-scrolls into view) or scroll to reach them: …)` names up to 8 of the ones below. Act on a named one by its `@ref` (it scrolls into view by itself) or `scroll`; re-snapshotting in place will NOT reveal more. But to FIND a specific thing off-screen — an item, a row, a phrase anywhere on the page — don't scroll-scan: **`browser_find_text({query})`** jumps straight to every match (+ its row controls) in one call (see "Timed stages & feeds"). This is the point: you read the *current* screen, not a tree that grows without bound as a long/stacked page piles up (that growth was the old #1 token sink). A `position:fixed/sticky` element (cookie-bar, FAB, chat widget) stays in the tree no matter the scroll — it's always on screen.
 - **A trailing `(secondary [footer·decoy] — demoted; act by @ref if needed: @e30, @e31 …)`** lists controls demoted out of the main tree: footer links and tiny decoys. They're not load-bearing — ignore them, but they're still actionable by the `@ref` shown if you actually need one. The header/search/login and side tools are NEVER demoted; they stay in the main tree.
 - **`ctx="…"` disambiguates — text, then color, then position.** It's the nearby visible label (duplicate/icon buttons; on a form field it shows only when it differs from a misleading `name`). When the text can't tell same-name controls apart, `ctx` becomes their distinguishing **color** (`ctx="green #008000"`) or **position** (`ctx="top-left"`, `"top"`, `"top-right"`, `"left"`, `"center"`, `"right"`, `"bottom-left"`, `"bottom"` or `"bottom-right"` — the 3×3 region of the viewport). So three identical "Select" buttons read as three distinct refs: pick "the `green` one" or "the `bottom-right` one" by reference, no pixels. Route by `ctx`; never guess between same-name refs.
@@ -236,13 +231,13 @@ The page's accessibility tree: interactive controls as `@eN` + role + name. Chea
 - **A trailing `(page skeleton: ...)` block**, on pages that have ARIA landmarks with real content — `banner`/`navigation`/`main`/`complementary`/`contentinfo`/`search`/`form`/`region`, each numbered and listing the `@ref`s it contains (nested landmarks shown indented). Absent on pages without landmarks — nothing to parse, nothing lost. **The number is a scope filter, not a second way to address a control** — you still act by `@ref`. To narrow a LATER `browser_snapshot({region: N})` call to just that landmark's controls (no skeleton, no off-screen/secondary tails — a smaller read when you already know which region you need): pass the number from a prior call. Numbers can go stale if the page changed — a bad `region` errors asking you to re-snapshot for fresh ones.
 
 ## Act
-- `browser_click({target, button?})` — `@eN` or a CSS / `xpath=` selector. Operates the DOM node (`element.click()`), so it fires SPA routers and React/delegated handlers a synthetic pixel click would miss. Returns `{ok, url_changed, dom_changed, no_effect, dialog?, state?, changes, url}`:
+- `browser_click({target, button?})` — `@eN` or a CSS / `xpath=` selector. It always clicks: there is no preview mode (`dry_run` is not a parameter). Operates the DOM node (`element.click()`), so it fires SPA routers and React/delegated handlers a synthetic pixel click would miss. Returns `{ok, url_changed, dom_changed, no_effect, dialog?, state?, changes, url}`:
   - **`changes` = the DOM delta (the killer feature).** `new:[{ref,role,name}]` (controls that APPEARED — act on these directly), `gone`, and a one-line `summary` like `"1 new: button 'Next'"`. `{}` = nothing structural changed; `no_effect:true` = ran but no visible effect (wait/retry or re-check the ref).
   - **On `no_effect:true`, `hint` names the DETERMINED cause** — element detached from the page (re-snapshot for a fresh `@ref`), disabled, covered by another element (named), or the page still loading — never a list of guesses. If none of those checks pinpointed it, `hint` says so plainly instead of pretending.
   - **`state`** — the touched element's RESULTING state right after the click: `{checked, value, aria_pressed, aria_selected, selected, disabled}` (null on a right-click). A checkbox/toggle/radio/select click is verified in the SAME call — no separate read-back needed.
   - **`dialog`** — if the click opens a native `alert`/`confirm`/`prompt`/`beforeunload`, the page freezes and the call returns immediately with `dialog:{kind,message,default_prompt}` set instead of waiting. Resolve it with `browser_handle_dialog` before doing anything else on that tab (see "Native dialogs" below).
   - ex: `browser_click({target:"@e3"})` → `{changes:{new:[{ref:"@e7",role:"button",name:"Next"}],summary:"1 new: button 'Next'"}}` → press `@e7` **with no re-snapshot**.
-- `browser_type({target, text, submit?})` — focus + real keystrokes (`submit:true` presses Enter after typing). To overwrite a field, `press_key({key:"a", ctrl:true})` first. Verifies itself against what the field had BEFORE typing (never against the literal text — a mask/normalizer, or typing into a non-empty field, legitimately changes the result): no change at all → `ok:false, no_effect:true, hint` (same shape as `browser_click`'s no-op — a DETERMINED cause, not a guess); some change → `ok:true, no_effect:false, outcome:"confirmed"` (landed exactly) or `"unconfirmed"` (a mask/normalizer reshaped it — read the field with `browser_get_value` if the exact value matters). If typing triggers a re-render it returns `dom_changed:true` + `changes`, same as `browser_click`/`browser_fill` — read `changes.new` for fresh `@ref`s instead of re-snapshotting.
+- `browser_type({target, text, submit?})` — focus + real keystrokes (`submit:true` presses Enter after typing). To overwrite a field, `press_key({key:"a", ctrl:true})` first. Verifies itself against what the field had BEFORE typing (never against the literal text — a mask/normalizer, or typing into a non-empty field, legitimately changes the result): no change at all → `ok:false, no_effect:true, hint` (same shape as `browser_click`'s no-op — a DETERMINED cause, not a guess); some change → `ok:true, no_effect:false, outcome:"confirmed"` (landed exactly) or `"unconfirmed"` (a mask/normalizer reshaped it — read the field with `browser_get_value` if the exact value matters). On a field the browser already autofilled it can answer `no_effect:true`, and a recording keeps the step anyway: use `browser_fill`, which replaces the value. If typing triggers a re-render it returns `dom_changed:true` + `changes`, same as `browser_click`/`browser_fill` — read `changes.new` for fresh `@ref`s instead of re-snapshotting.
 - `browser_fill({target, value})` — set `.value` directly + input/change/blur events. The way to load `<input type=date|time>`, `<select>`, and React-controlled fields that ignore typed keys. ex: `browser_fill({target:"@e9", value:"2026-06-22"})`. If the value didn't stick, `evidence[0].note` names why — detached, disabled, read-only, covered, or the page still loading — not just `ok:false`. A mask that only adds separators (`9 3913 8855` shown as `(9) 3913-8855`) still counts as stuck: `ok:true` with `evidence[0].formatted:true`; a changed `.`/`,`/leading `-` is never formatting (`ok:false`).
   - **If the fill triggers a re-render** (live validation, a React state update) it returns `dom_changed:true` + `changes` — same shape as `browser_click`'s. The rest of a `run_steps` batch may now hold stale `@ref`s from BEFORE this fill; read `changes.new` for fresh ones instead of re-snapshotting.
 - `browser_transfer({from, to})` — move a value DOM→DOM **without it passing through you** (secrets; "Copy" buttons work too). Returns `{ok, value_len}`, never the value.
@@ -280,13 +275,13 @@ Some sites (Reddit, anything behind Cloudflare-style bot management) wall off th
 
 ## Thumbnails on/off
 
-Thumbnails are ON by default.
+Thumbnails are ON by default. **If you are a model that cannot read images, turn them off** (header `X-Verdesk-Thumbnails: off`, or query param `thumbnails=off`, in your `.mcp.json`): each crop is otherwise unreadable noise in your context.
 
-**If you are a model that cannot read images, turn them off** — otherwise every crop lands in your context as unreadable noise, spending tokens and crowding out what you can actually use. Set the header `X-Verdesk-Thumbnails: off` (or query param `thumbnails=off`) in your `.mcp.json`.
+On a sign-in page take no `screenshot`: the snapshot's thumbnail of a form the browser autofilled can show the saved account, and only that setting turns it off.
 
 With them off, disambiguation falls back to text only: `ctx=` (label, colour, viewport position) and the `(twins: …)` notice. If two controls are still indistinguishable after that, ask rather than guess.
 
 **This is a trade-off, not a free cleanup — know what you're giving up:**
 - **Safe**: an icon the DOM already names (`icon="save"`, inferred from `<title>`/class/etc.) never generated a thumbnail in the first place — turning thumbnails off costs you nothing there.
 - **Not safe**: a genuinely mute icon (no accessible name, no DOM-inferred `icon=`) DOES lose information when thumbnails are off. You'll see `(N unnamed icons — image suppressed by your config)` instead of the crop — that notice means there is something real you can't see, because of your own setting, not because Verdesk hid it.
-- **What to do about it**: the unnamed icons are still in the snapshot as bare `button [ref=eN]` entries near where the notice appears. **If you can read images**, `screenshot({target:"@eN"})` on one shows it directly. **If you cannot read images**, `screenshot({target:"@eN"})` won't help either — your honest recourse is to turn thumbnails back on, or ask rather than guess.
+- **What to do about it**: the unnamed icons are still in the snapshot as bare `button [ref=eN]` entries near the notice. **If you can read images**, `screenshot({target:"@eN"})` shows one; if you cannot, turn thumbnails back on or ask rather than guess.

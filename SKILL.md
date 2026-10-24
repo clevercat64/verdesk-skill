@@ -17,7 +17,7 @@ Verdesk sends what **changed** (cheap text + targeted crops), not a full screens
 | **desktop** | `verdesk_skill({surface:"desktop"})` | windows/monitors: look/UIA/click-ladder/focus/coords |
 | **trains** | `verdesk_skill({surface:"trains"})` | record & replay tasks: playbooks/run_steps/objects/run_command |
 
-Read the part for THIS task, then act. The hot path below is enough to start; the part has the depth.
+**The verbs surface.** The tool list also carries six verbs — `see`, `act`, `go`, `wait_until`, `remember`, `status` — that pick the channel for you and name it in `via`. This manual names the specific tools: use those. A client that sends the header `X-Verdesk-Catalog: verbs` (or `?catalog=verbs`) gets only the six, and its own manual instead of this one: `verdesk_skill({surface:"verbs"})`.
 
 ## Hot path
 
@@ -43,7 +43,9 @@ On a window, `(x,y)` is relative to that window; the anchor keeps it valid when 
 - **Don't over-look.** Re-seeing what the snapshot / `changes` already told you is the single biggest waste. *Snapshot once → act → re-see only on change → pixels only at a wall.*
 - **Focus drifts.** Before any input burst: `focus_window` → confirm the right window is front → act.
 - **Digit-heavy text can misread.** A number/code that must be exact → `browser_get_text` (DOM) or `screenshot` zoomed — never trust it off `look()`'s text layer.
-- **`user_changed` = Verdesk did NOTHING.** `error_type:"user_changed"` means a person clicked, typed or scrolled on what you were driving (or moved its window) since your last view. The reply already carries the fresh view (desktop `look`, browser `browser_snapshot`): read it and repeat the action — don't re-look yourself. If the smallest `user_change.human[].ms_ago` is under ~2000 (the text says «last 2.0s ago»), the person is still working: `wait` a few seconds before repeating, or the next action stops you again.
+- **`user_changed` = Verdesk did NOTHING.** `error_type:"user_changed"` means a person clicked, typed or scrolled on what you were driving (or moved its window) since your last view. The reply already carries the fresh view (desktop `look`, browser `browser_snapshot`): read it and repeat the action — don't re-look yourself. If the smallest `user_change.human[].ms_ago` is under ~2000 (the text says «last 2.0s ago»), the person is still working: `wait` a few seconds before repeating, or the next action stops you again. If the change is that the window was minimized, moved off-screen or closed, ask the person: do not restore it yourself.
+- **A parameter a tool does not declare is refused.** The call does nothing and the error names what the tool takes. `dry_run` exists only on `click_in_rect` and `click_in_cell`; `browser_click` has no preview and always clicks.
+- **A Windows permission prompt (UAC) usually runs on a protected desktop that Verdesk does not see or click.** When an install reaches one, ask the person to approve it, then carry on.
 - **One agent at a time.** `Verdesk is in use by <agent> (<project>)` means another agent holds it and your call did NOTHING — wait (it frees 3 min after that agent's last call; `get_capabilities().lock` says when) and retry. When your task is done, `status({release:true})` frees it for the next agent.
 
 ## Capabilities
@@ -61,7 +63,7 @@ claude mcp add --transport http --scope user verdesk http://127.0.0.1:47802/mcp
 (`--scope user` = available in all your projects. Drop it for this project only.) Then reopen the client so the tools load.
 
 ## Self-integration & setup
-This manual ships in the binary (`verdesk_skill`), version-matched to the server. Persist it to `~/.claude/skills/verdesk/` (Windows: `%USERPROFILE%\.claude\skills\verdesk\`): `SKILL.md` + `references/{browser,desktop,trains}.md` — fetch each part via `verdesk_skill({surface})` and write it verbatim. Re-fetch + overwrite on reconnect to a newer server. Non-blocking — if a write fails, keep going.
+This manual ships in the binary (`verdesk_skill`), version-matched to the server. Persist it to `~/.claude/skills/verdesk/` (Windows: `%USERPROFILE%\.claude\skills\verdesk\`): `SKILL.md` + `references/{browser,desktop,trains,verbs}.md` — fetch each part via `verdesk_skill({surface})` and write it verbatim. Re-fetch + overwrite on reconnect to a newer server. Non-blocking — if a write fails, keep going.
 
 **The installed program wins.** A copy of this skill is a cache of the running binary: refresh it from `verdesk_skill`, never from the web (a manual newer than the binary describes tools it doesn't have). The served copy carries `<!-- verdesk-skill-version: X.Y.Z -->` — first line of each reference; in this file, right after the frontmatter — compare it with `verdesk_version` in `get_capabilities()` to know if your copy is stale. If Verdesk isn't running, use the copy you have.
 
