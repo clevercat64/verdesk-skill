@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-plugin",
   "name": "verdesk",
-  "version": "2.63.0",
+  "version": "2.64.0",
   "description": "Skill that teaches an AI agent to operate the Windows desktop and browsers through Verdesk, a local MCP server: modulated screen capture, plain-text reading and UI actions.",
   "author": "Camilo Brossard",
   "license": "MIT",

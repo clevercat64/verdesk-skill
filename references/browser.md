@@ -19,7 +19,7 @@ run_steps({steps:[
 ]})
 ```
 
-**A `<select>` / dropdown / combobox is `browser_fill` with the option as `value`.** There is no separate "select option" tool, and `browser_select_tab` is unrelated (it switches BROWSER TABS). Dropdowns batch like any other field — twelve of them still go in one `run_steps`.
+**A `<select>` / dropdown / combobox is `browser_fill` with the option as `value`.** There is no separate "select option" tool, and `browser_select_tab` is unrelated (it switches BROWSER TABS). Dropdowns batch like any other field — twelve of them still go in one `run_steps`. `value` is the option's `value` attribute OR its visible text when exactly one option has that text (two options with the same text → an error listing their values; no option matching → an error listing the options; either way the select is left as it was). A closed select does not render its options, so read them with `browser_describe({target:"@e10"})` → `options:[{value,text,selected}]` (max 50).
 
 **Never fill one field per call.** Eight fields is one call, not eight. This batching is the single biggest speed edge Verdesk has; walking on eggshells field by field throws it away.
 
@@ -58,7 +58,7 @@ browser_click({target:"@e6"})
 browser_wait_for({condition:{kind:"text", text:"Dashboard"}})   // name what proves you're in
 ```
 
-To repeat the login, record it as a macro whose password slot the person or the vault fills (trains, section 7).
+To repeat the login, record it as a macro whose password slot the person or the vault fills (trains, section 7). While you record, `browser_fill` the user name and password as `{user}` and `{password}` and the person types both in Verdesk's window, never in front of you (trains, section 4).
 
 **Moving a password you must NOT see** (a value sitting in another field, or behind a "Copy" button): `browser_transfer({from, to})` moves it DOM→DOM and returns only `{ok, value_len}` — the secret never passes through you.
 
@@ -93,7 +93,7 @@ browser_click({target:"@e6"})
 browser_click({target:"@e7"})            // act on the fresh ref. NO second snapshot.
 ```
 
-`changes` is the delta. Re-snapshotting to "double-check" what `changes` already told you is the #1 waste of both tokens and time.
+`changes` is the delta. Re-snapshotting to "double-check" what `changes` already told you is the #1 waste of both tokens and time. If the click navigated (`url_changed:true`), `changes` is just `{page_changed:true, gone_count, new:[first 8], new_total?}` — everything from the old page is gone, so snapshot the new page. Otherwise `gone` lists at most 8 (`gone_total` says if there were more) and never `<option>`s.
 
 ### Read a code / text the page shows you
 
@@ -150,6 +150,7 @@ Scope the read to the **container** of the task (the `<form>`, the card, the sec
 
 ```
 browser_tabs()                        // → {tabs:[{id,index,title,url,active}]}
+browser_tabs({url:"https://…"})       // opens a NEW tab (http/https/about:blank), NOT selected → {ok,id,index,url,active:false}
 browser_select_tab({id:"…"})          // every browser tool now operates on that tab
 ```
 
@@ -241,7 +242,7 @@ The page's accessibility tree: interactive controls as `@eN` + role + name — n
 - `browser_fill({target, value})` — set `.value` directly + input/change/blur events. The way to load `<input type=date|time>`, `<select>`, and React-controlled fields that ignore typed keys. ex: `browser_fill({target:"@e9", value:"2026-06-22"})`. If the value didn't stick, `evidence[0].note` names why — detached, disabled, read-only, covered, or the page still loading — not just `ok:false`. A mask that only adds separators (`9 3913 8855` shown as `(9) 3913-8855`) still counts as stuck: `ok:true` with `evidence[0].formatted:true`; a changed `.`/`,`/leading `-` is never formatting (`ok:false`).
   - **If the fill triggers a re-render** (live validation, a React state update) it returns `dom_changed:true` + `changes` — same shape as `browser_click`'s. The rest of a `run_steps` batch may now hold stale `@ref`s from BEFORE this fill; read `changes.new` for fresh ones instead of re-snapshotting.
 - `browser_transfer({from, to})` — move a value DOM→DOM **without it passing through you** (secrets; "Copy" buttons work too). Returns `{ok, value_len}`, never the value.
-- `browser_upload({target, paths})` — attach files: `target` = the `<input type=file>` ITSELF (usually hidden — a CSS selector like `input[type=file]`), `paths` = absolute file paths. A click on an "Attach" button only opens the OS chooser, which Verdesk cannot operate.
+- `browser_upload({target, paths})` — attach files: `target` = the `<input type=file>` ITSELF (usually hidden — a CSS selector like `input[type=file]`), `paths` = absolute file paths. A click on an "Attach" button only opens the Windows file dialog: prefer `browser_upload`, which needs no dialog. No reachable input but a drag-and-drop zone? `how:"drop"` with `target` = the zone drops the files with real drag events and answers whether a drop event with the files reached the page (`ok:false, error_type:"no_drop_event"` if not — Verdesk cancels Chrome's default action, so the file is NOT opened in a tab; if a stray `file:` tab still appears it is closed and listed in `closed_tabs`; what the page does with them afterwards is NOT checked, so look at it). Pasting files is not supported. In a recorded macro each path is saved as the slot `{archivo}`, `{archivo_2}`…: the replay asks for the file.
 - `browser_drag({from, to})` — **drag one element onto another BY DOM REFERENCE.** `from`/`to` are `@ref`s or CSS/`xpath=` selectors; the engine resolves both, scrolls them in, and synthesizes the mouse drag. **No coordinates.** For mouse-based DnD (sortables, sliders, kanban, drop-zones). A labeled drop-zone now usually shows up in the snapshot as a named `@ref` (so prefer that); an UNlabeled drop-zone the snapshot can't surface is still reachable by selector: `browser_drag({from:"@e5", to:"[aria-label='drop-zone']"})`. Returns `{ok, from, to, from_xy, to_xy, moved, final_xy}`. **`ok:true` means the drag GESTURE completed — NOT that the drop landed.** Check `moved` instead: `false` means `from` is still at its original position — the drop was rejected, retry or investigate; `null` means `from` no longer resolves (common in sortables that replace the source node on success — indeterminate, not a failure).
   - Widgets that listen for **native HTML5 drag events** (`dragstart`/`dragover`/`drop`) report `moved:false` however often you retry: use `drag_path` (OS-level input) — see "No DOM at all".
 

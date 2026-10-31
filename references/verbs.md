@@ -57,7 +57,8 @@ Verdesk gives you **six verbs**. You say *what* you want; Verdesk picks the chan
 - `go({to:"back"|"forward"|"reload"})` walks the history; `go({to:"app:notepad"})` launches a program through the Windows Run dialog, visible on the user's screen.
 - **One agent at a time.** If an answer says Verdesk is in use by another agent, nothing was done: wait (it frees itself 3 minutes after that agent's last call) and check `status()`. When your task is done, `status({release:true})` frees it for the next agent.
 - A failure is information. Read `via` and `reason`, change the approach — repeating the same call is the most expensive move there is.
-- Repeated tasks: `remember({op:"suggest"})` first. If a saved train fits, `remember({op:"replay", task, args})`. Otherwise do it once between `remember({op:"record", task})` and `remember({op:"save"})`. A replay that returns `paused:true` is waiting for a slot: `remember({op:"replay", run_id, inputs:{slot:"value"}})` continues it; `remember({op:"replay", run_id, action:"pause"|"continue"|"stop"})` controls it.
+- `status()` also carries `run` (a macro run alive) and `human_input:{hooks, last_event_ms_ago}`: whether the sensor that notices the person using the machine is alive (`hooks` = `active|partial|starting|not_started|failed`) and how long ago their last click or key was, never what it was. `not_started` is normal until your first look or snapshot (Verdesk starts the sensor with the first view it delivers; then it reads `active`); `partial`, `starting` and `failed` mean that not noticing the person proves nothing; `active` with no recent event after heavy use is suspect.
+- Repeated tasks: `remember({op:"suggest"})` first. If a saved train fits, `remember({op:"replay", task, args})`. Otherwise do it once between `remember({op:"record", task})` and `remember({op:"save"})`. A replay that returns `paused:true` is waiting for a slot: `remember({op:"replay", run_id, inputs:{slot:"value"}})` continues it; `remember({op:"replay", run_id, action:"pause"|"continue"|"stop"})` controls it. A `wait_until` recorded in a macro (met or timed out) becomes a step; `skip_next:N` makes it a fork («already signed in? skip the next N steps») but only as a step of a saved macro, set with `playbook_edit_step` (reachable as `via` of `remember`; trains reference, section 6). A live `wait_until` with it is refused.
 
 ## Rare cases — force a channel
 
@@ -65,7 +66,7 @@ Every verb takes `via` + `via_args` to run one specific underlying tool with its
 
 - A native `alert`/`confirm`/`prompt` froze the page (the action's result has `dialog`): `act({via:"browser_handle_dialog", via_args:{accept:true}})`. Answer it before anything else.
 - Move a password without seeing it: `act({via:"browser_transfer", via_args:{from:"@e3", to:"@e9"}})`.
-- Upload a file: `act({via:"browser_upload", via_args:{target:"input[type=file]", paths:["C:\\f.pdf"]}})`.
+- Upload a file: `act({via:"browser_upload", via_args:{target:"input[type=file]", paths:["C:\\f.pdf"]}})`. A drag-and-drop zone with no reachable input: `target` = the zone and `how:"drop"` in `via_args`.
 - Drag: `act({via:"browser_drag", via_args:{from:"@e5", to:"@e9"}})` — check `moved`, not `ok`.
 - Find every item matching a phrase plus the buttons in its row (upvote all, delete all): `see({via:"browser_find_text", via_args:{query:"…"}})`, then one `act({steps:[…]})` with their selectors.
 
